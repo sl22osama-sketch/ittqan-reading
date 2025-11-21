@@ -1,5 +1,7 @@
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+// firebase-config.js
+// إعدادات مشروع Firebase الخاص بمنصة القراءة الذكية
+
+window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyDyfbfaZrOxmjlfQBrLSd15VtL4TN_5LSY",
   authDomain: "reading-app-b06fd.firebaseapp.com",
   databaseURL: "https://reading-app-b06fd-default-rtdb.firebaseio.com",
