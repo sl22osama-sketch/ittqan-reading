@@ -1,568 +1,103 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <title>لوحة المعلم - منصة القراءة الذكية</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: radial-gradient(circle at top left, #e0f2fe, #eff6ff 40%, #f9fafb 70%);
-            min-height: 100vh;
-        }
-        .card {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 1.5rem;
-            box-shadow:
-                0 20px 40px rgba(15, 23, 42, 0.12),
-                0 0 0 1px rgba(148, 163, 184, 0.2);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-        }
-        .badge {
-            border-radius: 999px;
-            padding: 0.1rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-    </style>
-    <script src="shared.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة الإتقان – المعلم</title>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="shared_firebase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+<script src="firebase-config.js"></script>
+<script src="shared_firebase.js"></script>
+
+<style>
+body { font-family: "Tajawal"; background:#eef; padding:20px; direction:rtl; text-align:center; }
+#studentsBox button { padding:10px; margin:5px; }
+</style>
 </head>
-<body class="text-slate-800">
-    <div class="max-w-7xl mx-auto px-4 py-6 md:py-10">
-        <!-- Header -->
-        <header class="mb-8 md:mb-12">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 flex items-center gap-3">
-                        <span class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-600 text-white text-2xl shadow-lg">👩‍🏫</span>
-                        لوحة المعلم - منصة القراءة الذكية
-                    </h1>
-                    <p class="mt-2 text-sm md:text-base text-slate-600 font-medium">
-                        راقب تقدم طلابك، استمع لتسجيلاتهم، وقيّم أداءهم في القراءة بكل سهولة.
-                    </p>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <div class="badge bg-indigo-100 text-indigo-700 flex items-center gap-1">
-                        <span class="text-lg">📚</span> لوحة متابعة القراءة
-                    </div>
-                    <div class="badge bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                        <span class="text-lg">🎧</span> استماع للتسجيلات
-                    </div>
-                    <div class="badge bg-amber-100 text-amber-700 flex items-center gap-1">
-                        <span class="text-lg">📝</span> تقييمات المعلم
-                    </div>
-                </div>
-            </div>
-        </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-            <!-- Left column: filters + students list -->
-            <section class="lg:col-span-1 space-y-6">
-                <!-- Filters -->
-                <div class="card p-4 md:p-6">
-                    <h2 class="text-lg md:text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                        🔍 بحث عن طالب
-                    </h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">اسم الطالب</label>
-                            <input id="filterName" type="text" placeholder="ابحث باسم الطالب"
-                                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">الصف الدراسي</label>
-                            <select id="filterGrade"
-                                    class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="">كل الصفوف</option>
-                                <option value="5">الصف الخامس</option>
-                                <option value="6">الصف السادس</option>
-                                <option value="7">الصف السابع</option>
-                                <option value="8">الصف الثامن</option>
-                                <option value="9">الصف التاسع</option>
-                                <option value="10">الصف العاشر</option>
-                                <option value="11">الصف الحادي عشر</option>
-                                <option value="12">الصف الثاني عشر</option>
-                            </select>
-                        </div>
-                        <button id="clearFilters"
-                                class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 text-white py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-[0.99] transition">
-                            🔄 مسح المرشحات
-                        </button>
-                    </div>
-                </div>
+<body>
 
-                <!-- Students list -->
-                <div class="card p-4 md:p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg md:text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                            👨‍🎓 الطلاب
-                        </h2>
-                        <span id="studentsCount" class="text-xs font-semibold text-slate-500">0 طالب</span>
-                    </div>
-                    <div id="studentsList" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                        <!-- يتم ملؤه من جافاسكربت -->
-                    </div>
-                    <p id="noStudentsMsg" class="text-xs text-slate-500 mt-3 hidden">
-                        لا توجد بيانات طلاب حتى الآن. تأكد من أن الطلاب استخدموا صفحة الطالب وقاموا بتنزيل التقرير بعد الجلسة.
-                    </p>
-                </div>
-            </section>
+<h1>📊 منصة المعلم</h1>
 
-            <!-- Right column: student details -->
-            <section class="lg:col-span-2 space-y-6">
-                <!-- Summary + chart -->
-                <div class="card p-4 md:p-6">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div>
-                            <h2 id="studentTitle" class="text-xl md:text-2xl font-extrabold text-slate-900">
-                                📊 اختر طالباً لعرض تفاصيل تقدمه
-                            </h2>
-                            <p id="studentSubtitle" class="text-xs md:text-sm text-slate-500 mt-1">
-                                سيتم هنا عرض إحصاءات الطالب، مخطط سرعة القراءة، وسجل الجلسات.
-                            </p>
-                        </div>
-                        <div id="studentBadges" class="flex flex-wrap gap-2 text-xs">
-                            <!-- Filled dynamically -->
-                        </div>
-                    </div>
+<h3>قائمة الطلاب:</h3>
+<div id="studentsBox"></div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="studentStats">
-                        <!-- Small stats cards -->
-                    </div>
+<h3>جلسات الطالب:</h3>
+<table border="1" width="80%" align="center">
+<thead>
+<tr>
+<th>التاريخ</th>
+<th>السرعة</th>
+<th>عدد الكلمات</th>
+</tr>
+</thead>
+<tbody id="sessionsBody"></tbody>
+</table>
 
-                    <div>
-                        <h3 class="text-sm md:text-base font-bold text-slate-700 mb-3 flex items-center gap-2">
-                            📈 منحنى سرعة القراءة (كلمة في الدقيقة)
-                        </h3>
-                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 md:p-4">
-                            <canvas id="speedChart" height="140"></canvas>
-                        </div>
-                    </div>
-                </div>
+<canvas id="speedChart" width="400" height="200"></canvas>
 
-                <!-- Sessions table -->
-                <div class="card p-4 md:p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                            📜 سجل جلسات القراءة
-                        </h3>
-                        <span id="sessionsCount" class="text-xs font-semibold text-slate-500">لا توجد جلسات</span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-xs md:text-sm">
-                            <thead>
-                                <tr class="bg-slate-50 text-slate-600">
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">التاريخ</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">النص</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">الكلمات</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">الوقت (ث)</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">السرعة</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">الإكمال</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">التسجيل</th>
-                                    <th class="px-2 md:px-3 py-2 text-right font-semibold">تقييم المعلم</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sessionsBody">
-                                <!-- Rows via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
+<script>
+let chart = null;
 
-    <!-- Evaluation Modal -->
-    <div id="evaluationModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="card w-full max-w-lg p-5 md:p-6">
-            <h3 class="text-xl md:text-2xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-                📝 تقييم المعلم للجلسة
-            </h3>
-            <p id="evalSessionInfo" class="text-xs md:text-sm text-slate-500 mb-4">
-                <!-- Filled dynamically -->
-            </p>
-            <div class="space-y-3 md:space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">الطلاقة</label>
-                        <select id="evalFluency" class="w-full rounded-xl border border-slate-300 px-2 py-1.5 text-xs md:text-sm">
-                            <option value="1">1 - ضعيف</option>
-                            <option value="2">2 - مقبول</option>
-                            <option value="3">3 - جيد</option>
-                            <option value="4">4 - جيد جداً</option>
-                            <option value="5">5 - ممتاز</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">الدقة</label>
-                        <select id="evalAccuracy" class="w-full rounded-xl border border-slate-300 px-2 py-1.5 text-xs md:text-sm">
-                            <option value="1">1 - أخطاء كثيرة</option>
-                            <option value="2">2 - أخطاء ملحوظة</option>
-                            <option value="3">3 - أخطاء بسيطة</option>
-                            <option value="4">4 - أخطاء نادرة</option>
-                            <option value="5">5 - دقة عالية</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">فهم المقروء</label>
-                        <select id="evalComprehension" class="w-full rounded-xl border border-slate-300 px-2 py-1.5 text-xs md:text-sm">
-                            <option value="1">1 - ضعيف</option>
-                            <option value="2">2 - مقبول</option>
-                            <option value="3">3 - جيد</option>
-                            <option value="4">4 - جيد جداً</option>
-                            <option value="5">5 - ممتاز</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">ملاحظات المعلم</label>
-                    <textarea id="evalNotes" rows="3"
-                              class="w-full rounded-xl border border-slate-300 px-2 py-1.5 text-xs md:text-sm"
-                              placeholder="اكتب ملاحظاتك حول أداء الطالب في هذه الجلسة..."></textarea>
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 mt-5">
-                <button id="evalCancel"
-                        class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                    إلغاء
-                </button>
-                <button id="evalSave"
-                        class="inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-3 py-1.5 text-xs md:text-sm font-bold hover:bg-indigo-500 active:scale-[0.99]">
-                    حفظ التقييم
-                </button>
-            </div>
-        </div>
-    </div>
+async function loadStudents() {
+    let list = await window.ReadingShared.getStudents();
+    let box = document.getElementById("studentsBox");
+    box.innerHTML = "";
 
-    <script>
-        let speedChart = null;
-        let currentStudentKey = null;
-        let currentSessionId = null;
+    list.forEach(s => {
+        let btn = document.createElement("button");
+        btn.innerHTML = s.name + " – الصف " + s.grade;
+        btn.onclick = () => showStudent(s.key);
+        box.appendChild(btn);
+    });
+}
 
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            return dateStr;
+async function showStudent(key) {
+    let sessions = await window.ReadingShared.listSessions(key);
+    let body = document.getElementById("sessionsBody");
+    body.innerHTML = "";
+
+    let dates = [];
+    let speeds = [];
+
+    sessions.forEach(s => {
+        let tr = document.createElement("tr");
+        tr.innerHTML = `
+        <td>${s.date}</td>
+        <td>${s.speed}</td>
+        <td>${s.wordsRead}</td>`;
+        body.appendChild(tr);
+
+        dates.push(s.date);
+        speeds.push(s.speed);
+    });
+
+    // رسم المخطط
+    let ctx = document.getElementById("speedChart").getContext("2d");
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: dates,
+            datasets: [{
+                label: "سرعة القراءة",
+                data: speeds,
+                borderColor: "#6a00ff",
+                borderWidth: 3
+            }]
         }
+    });
+}
 
-        function gradeLabel(grade) {
-            if (!grade) return 'غير محدد';
-            const map = {
-                '5': 'الصف الخامس',
-                '6': 'الصف السادس',
-                '7': 'الصف السابع',
-                '8': 'الصف الثامن',
-                '9': 'الصف التاسع',
-                '10': 'الصف العاشر',
-                '11': 'الصف الحادي عشر',
-                '12': 'الصف الثاني عشر'
-            };
-            return map[grade] || grade;
-        }
+loadStudents();
+</script>
 
-        async function buildStudentsList() {
-            const nameFilter = document.getElementById('filterName').value.trim().toLowerCase();
-            const gradeFilter = document.getElementById('filterGrade').value;
-
-            const students = (window.ReadingShared && window.ReadingShared.getStudents)
-                ? await window.ReadingShared.getStudents()
-                : [];
-
-            const container = document.getElementById('studentsList');
-            const countEl = document.getElementById('studentsCount');
-            const noMsg = document.getElementById('noStudentsMsg');
-
-            container.innerHTML = '';
-
-            let filtered = students.filter(s => {
-                const matchesName = !nameFilter || (s.name || '').toLowerCase().includes(nameFilter);
-                const matchesGrade = !gradeFilter || (s.grade || '') == gradeFilter;
-                return matchesName && matchesGrade;
-            });
-
-            countEl.textContent = filtered.length + ' طالب';
-
-            if (filtered.length === 0) {
-                noMsg.classList.remove('hidden');
-                return;
-            } else {
-                noMsg.classList.add('hidden');
-            }
-
-            filtered.forEach(student => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'w-full text-right rounded-2xl border border-slate-200 px-3 py-2.5 text-xs md:text-sm hover:border-indigo-400 hover:bg-indigo-50 transition flex flex-col gap-1';
-                btn.innerHTML = `
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <div class="font-bold text-slate-900 text-sm md:text-base">${student.name}</div>
-                            <div class="text-[11px] text-slate-500">${student.school || 'غير محددة'} • ${gradeLabel(student.grade)}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[10px] text-slate-500">عدد الجلسات</div>
-                            <div class="text-xs md:text-sm font-extrabold text-indigo-600">${student.totalSessions}</div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 mt-1.5">
-                        <div class="text-[10px] text-slate-500">
-                            متوسط السرعة<br>
-                            <span class="font-bold text-slate-800">${student.avgSpeed}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-500">
-                            أفضل سرعة<br>
-                            <span class="font-bold text-emerald-600">${student.bestSpeed}</span>
-                        </div>
-                        <div class="text-[10px] text-slate-500">
-                            آخر جلسة<br>
-                            <span class="font-bold text-slate-800">${student.lastDate || '-'}</span>
-                        </div>
-                    </div>
-                `;
-                btn.addEventListener('click', () => {
-                    currentStudentKey = student.key;
-                    loadStudentDetails(student.key);
-                });
-                container.appendChild(btn);
-            });
-        }
-
-        async function loadStudentDetails(studentKey) {
-            if (!window.ReadingShared) return;
-            const student = await window.ReadingShared.getStudentByKey(studentKey);
-            if (!student) return;
-
-            const titleEl = document.getElementById('studentTitle');
-            const subtitleEl = document.getElementById('studentSubtitle');
-            const badgesEl = document.getElementById('studentBadges');
-            const statsEl = document.getElementById('studentStats');
-            const sessionsBody = document.getElementById('sessionsBody');
-            const sessionsCount = document.getElementById('sessionsCount');
-
-            titleEl.textContent = `📊 تقدم الطالب: ${student.name}`;
-            subtitleEl.textContent = `${student.school || 'غير محددة'} • ${gradeLabel(student.grade)}`;
-
-            badgesEl.innerHTML = `
-                <span class="badge bg-indigo-50 text-indigo-700 border border-indigo-100">المجموع: ${student.sessions.length} جلسة</span>
-            `;
-
-            const sessions = await window.ReadingShared.listSessions(studentKey);
-            sessionsCount.textContent = sessions.length ? `${sessions.length} جلسة` : 'لا توجد جلسات';
-
-            // Build small stats
-            let totalWords = 0;
-            let totalSpeed = 0;
-            let bestSpeed = 0;
-            sessions.forEach(s => {
-                totalWords += s.wordsRead || 0;
-                totalSpeed += s.speed || 0;
-                if ((s.speed || 0) > bestSpeed) bestSpeed = s.speed || 0;
-            });
-            const avgSpeed = sessions.length ? Math.round(totalSpeed / sessions.length) : 0;
-
-            statsEl.innerHTML = `
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 mb-1">إجمالي الكلمات المقروءة</span>
-                    <span class="text-lg md:text-2xl font-extrabold text-slate-900">${totalWords}</span>
-                </div>
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 mb-1">متوسط سرعة القراءة</span>
-                    <span class="text-lg md:text-2xl font-extrabold text-indigo-600">${avgSpeed}</span>
-                </div>
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 mb-1">أفضل سرعة</span>
-                    <span class="text-lg md:text-2xl font-extrabold text-emerald-600">${bestSpeed}</span>
-                </div>
-            `;
-
-            // Build chart
-            const labels = sessions.map(s => s.date || '');
-            const speeds = sessions.map(s => s.speed || 0);
-
-            const ctx = document.getElementById('speedChart').getContext('2d');
-            if (speedChart) speedChart.destroy();
-            speedChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'سرعة القراءة (كلمة/دقيقة)',
-                        data: speeds,
-                        fill: false,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-
-            // Build sessions table
-            sessionsBody.innerHTML = '';
-            if (!sessions.length) {
-                sessionsBody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center text-xs text-slate-500 py-4">
-                            لا توجد جلسات لهذا الطالب حتى الآن.
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            sessions.forEach(s => {
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-100 hover:bg-slate-50';
-                const evalText = s.evaluation
-                    ? `طلاقة: ${s.evaluation.fluency} / دقة: ${s.evaluation.accuracy} / فهم: ${s.evaluation.comprehension}`
-                    : 'لم يتم التقييم بعد';
-                tr.innerHTML = `
-                    <td class="px-2 md:px-3 py-2 align-top">${formatDate(s.date)}</td>
-                    <td class="px-2 md:px-3 py-2 align-top">
-                        <div class="font-semibold text-slate-800 text-[11px] md:text-xs">${s.textTitle || '-'}</div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">المستوى: ${s.level || '-'}</div>
-                    </td>
-                    <td class="px-2 md:px-3 py-2 align-top">
-                        <span class="font-semibold">${s.wordsRead || 0}</span>
-                        <span class="text-[10px] text-slate-500"> / ${s.totalWords || 0}</span>
-                    </td>
-                    <td class="px-2 md:px-3 py-2 align-top">${s.elapsedSeconds || 0}</td>
-                    <td class="px-2 md:px-3 py-2 align-top">${s.speed || 0}</td>
-                    <td class="px-2 md:px-3 py-2 align-top">${s.completion || 0}%</td>
-                    <td class="px-2 md:px-3 py-2 align-top">
-                        ${s.audioDataUrl
-                            ? `<button type="button" class="text-indigo-600 text-[11px] font-semibold hover:underline play-audio" data-id="${s.id}">▶️ تشغيل</button>`
-                            : '<span class="text-[11px] text-slate-400">لا يوجد تسجيل</span>'}
-                    </td>
-                    <td class="px-2 md:px-3 py-2 align-top">
-                        <button type="button"
-                                class="text-amber-700 text-[11px] font-semibold hover:underline eval-session"
-                                data-id="${s.id}">
-                            ${s.evaluation ? 'تعديل التقييم' : 'إضافة تقييم'}
-                        </button>
-                        <div class="text-[10px] text-slate-500 mt-0.5">${evalText}</div>
-                    </td>
-                `;
-                sessionsBody.appendChild(tr);
-            });
-
-            // Attach handlers for audio & evaluation buttons
-            sessionsBody.querySelectorAll('.play-audio').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    const sess = sessions.find(x => x.id === id);
-                    if (sess && sess.audioDataUrl) {
-                        const audio = new Audio(sess.audioDataUrl);
-                        audio.play();
-                    }
-                });
-            });
-
-            sessionsBody.querySelectorAll('.eval-session').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const id = btn.getAttribute('data-id');
-                    openEvaluationModal(studentKey, id);
-                });
-            });
-        }
-
-        function openEvaluationModal(studentKey, sessionId) {
-            currentStudentKey = studentKey;
-            currentSessionId = sessionId;
-
-            const modal = document.getElementById('evaluationModal');
-            const infoEl = document.getElementById('evalSessionInfo');
-
-            const sessions = await window.ReadingShared.listSessions(studentKey);
-            const sess = sessions.find(s => s.id === sessionId);
-            if (!sess) return;
-
-            infoEl.textContent = `الطالب: ${window.ReadingShared.getStudentByKey(studentKey).name} • التاريخ: ${sess.date || '-'} • النص: ${sess.textTitle || '-'}`;
-
-            const fluEl = document.getElementById('evalFluency');
-            const accEl = document.getElementById('evalAccuracy');
-            const compEl = document.getElementById('evalComprehension');
-            const notesEl = document.getElementById('evalNotes');
-
-            if (sess.evaluation) {
-                fluEl.value = sess.evaluation.fluency || 3;
-                accEl.value = sess.evaluation.accuracy || 3;
-                compEl.value = sess.evaluation.comprehension || 3;
-                notesEl.value = sess.evaluation.notes || '';
-            } else {
-                fluEl.value = "3";
-                accEl.value = "3";
-                compEl.value = "3";
-                notesEl.value = "";
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeEvaluationModal() {
-            document.getElementById('evaluationModal').classList.add('hidden');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const nameInput = document.getElementById('filterName');
-            const gradeSelect = document.getElementById('filterGrade');
-            const clearBtn = document.getElementById('clearFilters');
-
-            nameInput.addEventListener('input', buildStudentsList);
-            gradeSelect.addEventListener('change', buildStudentsList);
-            clearBtn.addEventListener('click', () => {
-                nameInput.value = '';
-                gradeSelect.value = '';
-                buildStudentsList();
-            });
-
-            document.getElementById('evalCancel').addEventListener('click', closeEvaluationModal);
-            document.getElementById('evaluationModal').addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    closeEvaluationModal();
-                }
-            });
-            document.getElementById('evalSave').addEventListener('click', () => {
-                if (!currentStudentKey || !currentSessionId || !window.ReadingShared) {
-                    closeEvaluationModal();
-                    return;
-                }
-                const evaluation = {
-                    fluency: parseInt(document.getElementById('evalFluency').value, 10),
-                    accuracy: parseInt(document.getElementById('evalAccuracy').value, 10),
-                    comprehension: parseInt(document.getElementById('evalComprehension').value, 10),
-                    notes: document.getElementById('evalNotes').value || ''
-                };
-                const ok = await window.ReadingShared.updateEvaluation(currentStudentKey, currentSessionId, evaluation);
-                if (ok) {
-                    alert('✅ تم حفظ تقييم المعلم بنجاح.');
-                    loadStudentDetails(currentStudentKey);
-                }
-                closeEvaluationModal();
-            });
-
-            // Initial load
-            buildStudentsList();
-        });
-    </script>
 </body>
 </html>
