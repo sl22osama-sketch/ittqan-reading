@@ -1,5 +1,5 @@
 // firebase-config.js
-// إعدادات مشروع Firebase الخاص بمنصة القراءة الذكية
+// إعدادات مشروعك في Firebase (Realtime Database + Storage)
 
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyDyfbfaZrOxmjlfQBrLSd15VtL4TN_5LSY",
