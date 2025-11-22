@@ -1,31 +1,69 @@
-// shared_firebase.js - DB only storage
-(function(window) {
+// shared_firebase.js - تخزين الجلسات عبر Firebase (Realtime Database + Storage)
+(function (window) {
   'use strict';
+
   const DB_PATH = '/readingSessionsV2';
-  let app = null, db = null;
+  const STORAGE_FOLDER = 'readingAudio';
+
+  let app = null;
+  let db = null;
+  let storage = null;
 
   function ensureFirebase() {
-    if (!window.firebase || !window.FIREBASE_CONFIG) return false;
+    if (!window.firebase || !window.FIREBASE_CONFIG) {
+      console.error('Firebase أو FIREBASE_CONFIG غير متوفرين');
+      return false;
+    }
     if (!app) {
       app = firebase.initializeApp(window.FIREBASE_CONFIG);
       db = firebase.database();
+      // لو كان Storage غير مفعّل لن يتأثر التخزين في الـ Database
+      try {
+        storage = firebase.storage();
+      } catch (e) {
+        console.warn('Firebase Storage غير متاح، سيتم تجاهل رفع الصوت', e);
+        storage = null;
+      }
     }
     return true;
   }
 
   function makeStudentKey(name, school) {
-    return (name||'').trim().toLowerCase() + '::' + (school||'').trim().toLowerCase();
+    const n = (name || '').trim().toLowerCase();
+    const s = (school || '').trim().toLowerCase();
+    return n + '::' + s;
+  }
+
+  async function uploadAudio(studentKey, sessionId, dataUrl) {
+    if (!ensureFirebase() || !storage || !dataUrl) return null;
+
+    const base64 = dataUrl.split(',')[1];
+    const path = `${STORAGE_FOLDER}/${studentKey}/${sessionId}.mp3`;
+    const ref = storage.ref().child(path);
+    await ref.putString(base64, 'base64', { contentType: 'audio/mpeg' });
+    const url = await ref.getDownloadURL();
+    return url;
   }
 
   async function addSession(session) {
     if (!ensureFirebase()) return null;
-    const key = makeStudentKey(session.studentName, session.schoolName);
-    const ref = db.ref(DB_PATH+'/students/'+key);
-    const newRef = ref.child('sessions').push();
-    const sid = newRef.key;
+
+    const studentKey = makeStudentKey(session.studentName, session.schoolName);
+    const ref = db.ref(DB_PATH + '/students/' + studentKey);
+    const newSessionRef = ref.child('sessions').push();
+    const sessionId = newSessionRef.key;
+
+    let audioUrl = null;
+    try {
+      if (session.audioDataUrl) {
+        audioUrl = await uploadAudio(studentKey, sessionId, session.audioDataUrl);
+      }
+    } catch (e) {
+      console.error('Error uploading audio', e);
+    }
 
     const payload = {
-      id: sid,
+      id: sessionId,
       date: session.date,
       level: session.level,
       textTitle: session.textTitle,
@@ -35,72 +73,102 @@
       elapsedSeconds: session.elapsedSeconds,
       speed: session.speed,
       completion: session.completion,
-      audioDataUrl: session.audioDataUrl || null,
+      audioUrl: audioUrl || null,
       evaluation: session.evaluation || null
     };
 
     await ref.child('name').set(session.studentName);
-    await ref.child('school').set(session.schoolName||'غير محدد');
-    await ref.child('grade').set(session.grade||'');
-    await newRef.set(payload);
-    return sid;
+    await ref.child('school').set(session.schoolName || 'غير محدد');
+    await ref.child('grade').set(session.grade || '');
+    await newSessionRef.set(payload);
+
+    return sessionId;
   }
 
   async function getStudents() {
     if (!ensureFirebase()) return [];
-    const snap = await db.ref(DB_PATH+'/students').once('value');
-    const val = snap.val()||{};
+    const snap = await db.ref(DB_PATH + '/students').once('value');
+    const val = snap.val() || {};
     const result = [];
-    Object.keys(val).forEach(k=>{
-      const st = val[k]||{};
-      const ss = Object.values(st.sessions||{});
-      let total=ss.length, sumWords=0, sumSpeed=0, best=0, last=null;
-      ss.forEach(s=>{
-        sumWords+=s.wordsRead||0;
-        sumSpeed+=s.speed||0;
-        if((s.speed||0)>best) best=s.speed||0;
-        if(s.date && (!last || s.date>last)) last=s.date;
+
+    Object.keys(val).forEach(key => {
+      const student = val[key] || {};
+      const sessionsObj = student.sessions || {};
+      const sessions = Object.values(sessionsObj);
+
+      let totalSessions = sessions.length;
+      let totalWords = 0;
+      let totalSpeed = 0;
+      let bestSpeed = 0;
+      let lastDate = null;
+
+      sessions.forEach(s => {
+        totalWords += s.wordsRead || 0;
+        totalSpeed += s.speed || 0;
+        if ((s.speed || 0) > bestSpeed) bestSpeed = s.speed || 0;
+        if (s.date && (!lastDate || s.date > lastDate)) lastDate = s.date;
       });
+
+      const avgSpeed = totalSessions > 0 ? Math.round(totalSpeed / totalSessions) : 0;
+
       result.push({
-        key:k,
-        name:st.name||'',
-        school:st.school||'غير محدد',
-        grade:st.grade||'',
-        totalSessions:total,
-        totalWords:sumWords,
-        avgSpeed: total>0? Math.round(sumSpeed/total):0,
-        bestSpeed:best,
-        lastDate:last
+        key: key,
+        name: student.name || '',
+        school: student.school || 'غير محدد',
+        grade: student.grade || '',
+        totalSessions,
+        totalWords,
+        avgSpeed,
+        bestSpeed,
+        lastDate
       });
     });
-    result.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+
+    result.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     return result;
   }
 
-  async function getStudentByKey(k){
-    if(!ensureFirebase()) return null;
-    const snap = await db.ref(DB_PATH+'/students/'+k).once('value');
-    const v = snap.val();
-    if(!v) return null;
-    v.key = k;
-    v.sessions = Object.values(v.sessions||{});
-    return v;
+  async function getStudentByKey(key) {
+    if (!ensureFirebase()) return null;
+    const snap = await db.ref(DB_PATH + '/students/' + key).once('value');
+    const val = snap.val();
+    if (!val) return null;
+
+    const sessionsObj = val.sessions || {};
+    const sessions = Object.values(sessionsObj);
+    val.sessions = sessions;
+    val.key = key;
+    return val;
   }
 
-  async function listSessions(k){
-    if(!ensureFirebase()) return [];
-    const snap = await db.ref(DB_PATH+'/students/'+k+'/sessions').once('value');
-    const v = snap.val()||{};
-    const arr = Object.values(v);
-    arr.sort((a,b)=> (a.date||'') < (b.date||'') ? -1 : 1);
-    return arr;
+  async function listSessions(key) {
+    if (!ensureFirebase()) return [];
+    const snap = await db.ref(DB_PATH + '/students/' + key + '/sessions').once('value');
+    const val = snap.val() || {};
+    const sessions = Object.values(val);
+
+    sessions.sort((a, b) => {
+      if (!a.date || !b.date) return 0;
+      if (a.date < b.date) return -1;
+      if (a.date > b.date) return 1;
+      return 0;
+    });
+
+    return sessions;
   }
 
-  async function updateEvaluation(k,sid,ev){
-    if(!ensureFirebase()) return false;
-    await db.ref(DB_PATH+'/students/'+k+'/sessions/'+sid+'/evaluation').set(ev);
+  async function updateEvaluation(key, sessionId, evaluation) {
+    if (!ensureFirebase()) return false;
+    const ref = db.ref(DB_PATH + '/students/' + key + '/sessions/' + sessionId + '/evaluation');
+    await ref.set(evaluation);
     return true;
   }
 
-  window.ReadingShared = {addSession,getStudents,getStudentByKey,listSessions,updateEvaluation};
+  window.ReadingShared = {
+    addSession,
+    getStudents,
+    getStudentByKey,
+    listSessions,
+    updateEvaluation
+  };
 })(window);
